@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { createAdminClient, createClient } from "@/lib/supabase/server"
 
+export type ActionResult = { ok: true } | { error: string }
+
 async function ensureSuperuser() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -17,7 +19,7 @@ async function ensureSuperuser() {
   }
 }
 
-export async function createUserAction(form: FormData) {
+export async function createUserAction(form: FormData): Promise<ActionResult> {
   await ensureSuperuser()
   const email = String(form.get("email") ?? "").trim()
   const password = String(form.get("password") ?? "")
@@ -52,7 +54,7 @@ export async function createUserAction(form: FormData) {
   return { ok: true }
 }
 
-export async function toggleUserActiveAction(userId: string, active: boolean) {
+export async function toggleUserActiveAction(userId: string, active: boolean): Promise<ActionResult> {
   await ensureSuperuser()
   const supabase = await createClient()
   const { error } = await supabase.from("profiles").update({ active }).eq("id", userId)
@@ -61,7 +63,7 @@ export async function toggleUserActiveAction(userId: string, active: boolean) {
   return { ok: true }
 }
 
-export async function sendPasswordResetAction(userId: string) {
+export async function sendPasswordResetAction(userId: string): Promise<ActionResult> {
   await ensureSuperuser()
   const admin = createAdminClient()
   const { data: user, error: getErr } = await admin.auth.admin.getUserById(userId)

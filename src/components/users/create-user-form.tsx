@@ -1,6 +1,7 @@
 "use client"
 
-import { useTransition, useState } from "react"
+import { useTransition, useState, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Loader2, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -9,27 +10,30 @@ import { Label } from "@/components/ui/label"
 import { createUserAction } from "@/app/(app)/users/actions"
 
 export function CreateUserForm() {
+  const router = useRouter()
+  const formRef = useRef<HTMLFormElement>(null)
   const [pending, startTransition] = useTransition()
   const [showPwd, setShowPwd] = useState(false)
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const form = new FormData(e.currentTarget)
-    const passwordEl = (e.currentTarget.querySelector("#password") as HTMLInputElement) ?? null
+    if (pending) return
+    const formEl = e.currentTarget
+    const data = new FormData(formEl)
     startTransition(async () => {
-      const res = await createUserAction(form)
+      const res = await createUserAction(data)
       if ("error" in res) {
-        toast.error(res.error)
+        toast.error(translateError(res.error))
         return
       }
       toast.success("Usuario creado")
-      e.currentTarget.reset()
-      if (passwordEl) passwordEl.value = ""
+      formRef.current?.reset()
+      router.refresh()
     })
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-3 md:grid-cols-5 items-end">
+    <form ref={formRef} onSubmit={onSubmit} className="grid gap-3 md:grid-cols-5 items-end">
       <div className="space-y-1 md:col-span-2">
         <Label htmlFor="full_name">Nombre completo</Label>
         <Input id="full_name" name="full_name" required />
@@ -42,7 +46,9 @@ export function CreateUserForm() {
         <Label htmlFor="password">Contraseña</Label>
         <div className="flex gap-1">
           <Input id="password" name="password" type={showPwd ? "text" : "password"} required minLength={8} />
-          <Button type="button" variant="ghost" size="sm" onClick={() => setShowPwd((v) => !v)}>{showPwd ? "Ocultar" : "Ver"}</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setShowPwd((v) => !v)}>
+            {showPwd ? "Ocultar" : "Ver"}
+          </Button>
         </div>
       </div>
       <div className="space-y-1">
@@ -60,4 +66,18 @@ export function CreateUserForm() {
       </div>
     </form>
   )
+}
+
+function translateError(message: string): string {
+  const lower = message.toLowerCase()
+  if (lower.includes("already been registered") || lower.includes("user already registered")) {
+    return "Ya existe una cuenta con ese email."
+  }
+  if (lower.includes("password")) {
+    return "La contraseña no cumple los requisitos (mínimo 8 caracteres)."
+  }
+  if (lower.includes("invalid email")) {
+    return "Email inválido."
+  }
+  return message
 }
