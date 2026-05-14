@@ -169,8 +169,11 @@ create trigger products_set_updated_at before update on public.products
 create trigger settings_set_updated_at before update on public.settings
   for each row execute function public.set_updated_at();
 
--- Generic audit trigger
-create or replace function public.audit_trigger() returns trigger language plpgsql as $$
+-- Generic audit trigger. SECURITY DEFINER so it can INSERT into audit_log
+-- regardless of caller RLS (the table only has a SELECT policy by design).
+create or replace function public.audit_trigger() returns trigger
+  language plpgsql security definer set search_path = public, auth
+as $$
 declare
   v_user uuid;
 begin
