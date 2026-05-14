@@ -219,12 +219,25 @@ create trigger audit_settings
 -- HELPER FUNCTIONS
 -- =========================================================
 
-create or replace function public.is_superuser() returns boolean language sql stable as $$
-  select exists (select 1 from public.profiles where id = auth.uid() and role = 'superuser' and active);
+-- SECURITY DEFINER so RLS on `profiles` is bypassed here. Without this, the
+-- policies on profiles call is_superuser(), which queries profiles, which
+-- re-triggers the policy → infinite recursion (Postgres "stack depth limit").
+create or replace function public.is_superuser() returns boolean
+  language sql stable security definer set search_path = public, auth
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'superuser' and active
+  );
 $$;
 
-create or replace function public.is_active_user() returns boolean language sql stable as $$
-  select exists (select 1 from public.profiles where id = auth.uid() and active);
+create or replace function public.is_active_user() returns boolean
+  language sql stable security definer set search_path = public, auth
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and active
+  );
 $$;
 
 -- =========================================================
